@@ -1,7 +1,11 @@
 {
   "canisters": {
-    "logger": {
-      "main": "TextLogger.mo",
+    "basicLogger": {
+      "main": "BasicLogger.mo",
+      "type": "motoko"
+    },
+    "infiniteLogger": {
+      "main": "InfiniteLogger.mo",
       "type": "motoko"
     }
   },
