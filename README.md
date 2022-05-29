@@ -1,14 +1,32 @@
-# ICP advanced lesson 02
+# ICP advanced lesson 03
 
 ## Problem
-实现一个简单的多人 Cycle 钱包，可以用于团队协作，提供类似多签的功能，在 N 个成员里面有 M 个同意的情况下，才允许对所控制的 Canister 进行安装、升级代码等需要权限的操作。
+### 作业：
+在第2课作业的基础上，实现以下的功能：
+1. 用 Actor Class 参数来初始化 M, N, 以及最开始的小组成员（principal id)。（1分）
+2. 允许发起提案，比如对某个被多人钱包管理的 canister 限制权限。（1分）
+3. 统计小组成员对提案的投票（同意或否决），并根据投票结果执行决议。（2分）
+4. 在主网部署，并调试通过。（1 分）
+本次课程作业先实现基本的提案功能，不涉及具体限权的操作。
 
-本次课程作业先实现一些基本功能，不涉及权限控制等操作。（5分）
+### 要求：
+1. 设计发起提案 (propose) 和对提案进行投票 (vote) 的接口。
+2. 实现以下两种提案：
+- 开始对某个指定的 canister 限权。
+- 解除对某个指定的 canister 限权。
+3. 在调用 IC Management Canister 的时候，给出足够的 cycle。
 
-要求：
+### 命令
+```bash
+dfx deploy --argument '( vec { principal "rsqv3-7dkj5-yvrcl-l2bkm-vkvuj-tdync-my6md-ob6uj-ah3bu-dpk3x-gqe"}, 1 )'
+dfx canister call WalletMultisig proposal_issue '( null , variant {create}, record {})'
+dfx canister call WalletMultisig proposal_vote '( 1 )'
+dfx canister call WalletMultisig proposal_view '( 1 )'
+dfx canister call WalletMultisig proposal_issue '( null , variant {create}, record { create_canister = opt record { null; opt vec { principal "rrkah-fqaaa-aaaaa-aaaaq-cai" }; null; null} })'
+dfx canister call WalletMultisig proposal_issue '( null , variant {create}, record { create_canister = opt record {freezing_threshold = null; controllers = opt vec { principal "rrkah-fqaaa-aaaaa-aaaaq-cai" }; memory_allocation = null; compute_allocation = null} })'
+# 主网
+dfx deploy --network=ic --with-cycles=4000000000000 --argument '( vec { principal "rsqv3-7dkj5-yvrcl-l2bkm-vkvuj-tdync-my6md-ob6uj-ah3bu-dpk3x-gqe"}, 1 )'
+```
 
-1. 实现一个多人 Cycle 钱包 canister，通过对 IC Management Canister 的调用实现 create_canister, install_code, start_canister, stop_canister, delete_canister 等操作。
-2. 通过这种方式创建的 canister 的 controller 必须是这个多人钱包。
-3. 提交项目源代码的仓库（不要求部署到主网）。
-4. 可以不考虑权限问题，也就是说任何人都可以使用这个钱包。
-5. 在做调试的时候可以使用 https://github.com/chenyan2002/ic-repl 这个工具，方便直接上传文件内容
+### 网址
+- https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.ic0.app/
