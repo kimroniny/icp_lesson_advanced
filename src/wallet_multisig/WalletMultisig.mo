@@ -24,10 +24,10 @@ actor class (principals: [Principal], limit: Nat) = self {
         limit = limit;
     };
 
-    // 支持的操作, 根据题目要求, 只实现了 create
+    // 支持的操作, 根据题目要求, 全部实现限权操作
     type CanisterOprs = {#create; #install; #start; #stop; #uninstall; #delete; #update};
 
-    // 操作参数类型, 目前只写了 create_canister 的参数
+    
     type install_orgs = {
         arg : [Nat8];
         wasm_module : IC.wasm_module;
@@ -38,6 +38,7 @@ actor class (principals: [Principal], limit: Nat) = self {
         canister_settings : IC.canister_settings;
         canister_id : IC.canister_id;
     };
+    // 所有的操作参数类型
     type OprArgs = {
         
         create: ?IC.canister_settings;
