@@ -28,9 +28,16 @@ actor class (principals: [Principal], limit: Nat) = self {
     type CanisterOprs = {#create; #install; #start; #stop; #delete; #upgrade};
 
     // 操作参数类型, 目前只写了 create_canister 的参数
+    type install_orgs = {
+        arg : [Nat8];
+        wasm_module : IC.wasm_module;
+        mode : { #reinstall; #upgrade; #install };
+        canister_id : IC.canister_id;
+    };
     type OprArgs = {
         
-        create_canister: ?IC.canister_settings;
+        create: ?IC.canister_settings;
+        install: ?install_orgs;
     };
 
     // 提案类型
@@ -171,7 +178,7 @@ actor class (principals: [Principal], limit: Nat) = self {
     private func proposal_exec(vote_proposal: Proposal) : async ResultExec {
         switch (vote_proposal.operation) {
             case (#create) {
-                let canister_id = await create_canister(vote_proposal.args);
+                let canister_id = await canister_create(vote_proposal.args);
                 switch (canister_id) {
                     case (null) {
                         return {canister_id = null; flag = false;};        
@@ -182,7 +189,8 @@ actor class (principals: [Principal], limit: Nat) = self {
                 };
             };
             case (#install) {
-                return {canister_id = null; flag = true;};
+                let flag, canister_id = await canister_install(vote_proposal.args);
+                return {canister_id = canister_id; flag = flag;};
             };
             case (#start) {
                 return {canister_id = null; flag = true;};
@@ -200,8 +208,8 @@ actor class (principals: [Principal], limit: Nat) = self {
         return {canister_id = null; flag = true;};
     };
 
-    private func create_canister(args: OprArgs) : async ?IC.canister_id {
-        let settings = args.create_canister;
+    private func canister_create(args: OprArgs) : async ?IC.canister_id {
+        let settings = args.create;
         switch (settings) {
             case (null) {
                 return null;
@@ -221,6 +229,38 @@ actor class (principals: [Principal], limit: Nat) = self {
             }
         };
     };
+
+    private func canister_install(args: OprArgs) : async (Bool, ?Principal) {
+        let settings = args.install;
+        switch (settings) {
+            case (null) {
+                return (false, null);
+            };
+            case (?settings) {
+                let canister = canister_book.get(settings.canister_id);
+                switch (canister) {
+                    case (null) {return (false, null);};
+                    case (?canister) {
+                        let ic : IC.Self = actor("aaaaa-aa");
+                        await ic.install_code({ 
+                            arg = settings.arg;
+                            wasm_module = settings.wasm_module;
+                            mode = settings.mode;
+                            canister_id = settings.canister_id;
+                        });
+                        canister_book.put(
+                            settings.canister_id, 
+                            {
+                                flag = true;
+                                status = #installed;
+                            }
+                        );
+                        return (true, settings.canister_id);
+                    }
+                }
+            }
+        };
+    }
 
     type ReturnProposal = {
         idx: Nat;
