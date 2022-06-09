@@ -25,7 +25,7 @@ actor class (principals: [Principal], limit: Nat) = self {
     };
 
     // 支持的操作, 根据题目要求, 只实现了 create
-    type CanisterOprs = {#create; #install; #start; #stop; #delete; #upgrade};
+    type CanisterOprs = {#create; #install; #start; #stop; #uninstall; #delete; #update};
 
     // 操作参数类型, 目前只写了 create_canister 的参数
     type install_orgs = {
@@ -34,10 +34,19 @@ actor class (principals: [Principal], limit: Nat) = self {
         mode : { #reinstall; #upgrade; #install };
         canister_id : IC.canister_id;
     };
+    type update_orgs = {
+        canister_settings : IC.canister_settings;
+        canister_id : IC.canister_id;
+    };
     type OprArgs = {
         
         create: ?IC.canister_settings;
         install: ?install_orgs;
+        start: ?Principal;
+        stop: ?Principal;
+        uninstall: ?Principal;
+        delete: ?Principal;
+        update: ?update_orgs;
     };
 
     // 提案类型
@@ -55,7 +64,7 @@ actor class (principals: [Principal], limit: Nat) = self {
         flag: Bool;
     };
 
-    type CanisterStatus = {#created; #installed; #beforestart; #started; #stopped; #deleted;};
+    type CanisterStatus = {#created; #installed; #started; #stopped; #uninstalled; #deleted; #updated};
     type CanisterInfo = {
         flag: Bool;
         status: CanisterStatus;
@@ -85,10 +94,13 @@ actor class (principals: [Principal], limit: Nat) = self {
                     
                 };
                 case (?voted) {
-                    cnt += 1;
-                    if (cnt > walletms.limit) {
-                        return false;
-                    }
+                    if (voted) {
+                        cnt += 1;
+                        if (cnt > walletms.limit) {
+                            return false;
+                        }
+                    };
+                    
                 }
             }
         };
@@ -131,7 +143,10 @@ actor class (principals: [Principal], limit: Nat) = self {
                 vote_proposal.principals.put(msg.caller, true);
                 if (should_exec(vote_proposal)) { // 判读是否应该执行提案
                     let result_exec = await proposal_exec(vote_proposal);
-                    if (not result_exec.flag) {return false;};
+                    if (not result_exec.flag) {
+                        vote_proposal.principals.put(msg.caller, false);
+                        return false;
+                    };
                     let canister_id = result_exec.canister_id;
                     switch (canister_id) {
                         case (null) {
@@ -141,6 +156,7 @@ actor class (principals: [Principal], limit: Nat) = self {
                         }
                     }
                 };
+                
                 proposal_book.put(
                     vote_proposal_id,
                     vote_proposal
@@ -164,7 +180,9 @@ actor class (principals: [Principal], limit: Nat) = self {
                     switch (voted) {
                         case (null) {};
                         case (?voted) {
-                            principals.add(principal);
+                            if (voted) {
+                                principals.add(principal);
+                            };
                         }
                     };
                 };
@@ -189,20 +207,47 @@ actor class (principals: [Principal], limit: Nat) = self {
                 };
             };
             case (#install) {
-                let flag, canister_id = await canister_install(vote_proposal.args);
-                return {canister_id = canister_id; flag = flag;};
+                let result = await canister_install(vote_proposal.args);
+                return {
+                    flag = result.0;
+                    canister_id = result.1;
+                };
+                
             };
             case (#start) {
-                return {canister_id = null; flag = true;};
+                let result = await canister_start(vote_proposal.args);
+                return {
+                    flag = result.0;
+                    canister_id = result.1;
+                };
             };
             case (#stop) {
-                return {canister_id = null; flag = true;};
+                let result = await canister_stop(vote_proposal.args);
+                return {
+                    flag = result.0;
+                    canister_id = result.1;
+                };
             };
             case (#delete) {
-                return {canister_id = null; flag = true;};
+                let result = await canister_delete(vote_proposal.args);
+                return {
+                    flag = result.0;
+                    canister_id = result.1;
+                };
             };
-            case (#upgrade) {
-                return {canister_id = null; flag = true;};
+            case (#update) {
+                let result = await canister_update(vote_proposal.args);
+                return {
+                    flag = result.0;
+                    canister_id = result.1;
+                };
+            };
+            case (#uninstall) {
+                let result = await canister_uninstall(vote_proposal.args);
+                return {
+                    flag = result.0;
+                    canister_id = result.1;
+                };
             };
         };
         return {canister_id = null; flag = true;};
@@ -255,12 +300,158 @@ actor class (principals: [Principal], limit: Nat) = self {
                                 status = #installed;
                             }
                         );
-                        return (true, settings.canister_id);
+                        return (true, ?settings.canister_id);
                     }
                 }
             }
         };
-    }
+    };
+
+    private func canister_update(args: OprArgs) : async (Bool, ?Principal) {
+        let settings = args.update;
+        switch (settings) {
+            case (null) {
+                return (false, null);
+            };
+            case (?settings) {
+                let canister = canister_book.get(settings.canister_id);
+                switch (canister) {
+                    case (null) {return (false, null);};
+                    case (?canister) {
+                        let ic : IC.Self = actor("aaaaa-aa");
+                        await ic.update_settings({ 
+                            settings = settings.canister_settings;
+                            canister_id = settings.canister_id;
+                        });
+                        canister_book.put(
+                            settings.canister_id, 
+                            {
+                                flag = true;
+                                status = #updated;
+                            }
+                        );
+                        return (true, ?settings.canister_id);
+                    }
+                }
+            }
+        };
+    };
+
+    private func canister_start(args: OprArgs) : async (Bool, ?Principal) {
+        let canister_id = args.start;
+        switch (canister_id) {
+            case (null) {
+                return (false, null);
+            };
+            case (?canister_id) {
+                let canister = canister_book.get(canister_id);
+                switch (canister) {
+                    case (null) {return (false, null);};
+                    case (?canister) {
+                        let ic : IC.Self = actor("aaaaa-aa");
+                        await ic.start_canister({ 
+                            canister_id = canister_id;
+                        });
+                        canister_book.put(
+                            canister_id, 
+                            {
+                                flag = true;
+                                status = #started;
+                            }
+                        );
+                        return (true, ?canister_id);
+                    }
+                }
+            }
+        };
+    };
+
+    private func canister_stop(args: OprArgs) : async (Bool, ?Principal) {
+        let canister_id = args.stop;
+        switch (canister_id) {
+            case (null) {
+                return (false, null);
+            };
+            case (?canister_id) {
+                let canister = canister_book.get(canister_id);
+                switch (canister) {
+                    case (null) {return (false, null);};
+                    case (?canister) {
+                        let ic : IC.Self = actor("aaaaa-aa");
+                        await ic.stop_canister({ 
+                            canister_id = canister_id;
+                        });
+                        canister_book.put(
+                            canister_id, 
+                            {
+                                flag = true;
+                                status = #stopped;
+                            }
+                        );
+                        return (true, ?canister_id);
+                    }
+                }
+            }
+        };
+    };
+
+    private func canister_delete(args: OprArgs) : async (Bool, ?Principal) {
+        let canister_id = args.stop;
+        switch (canister_id) {
+            case (null) {
+                return (false, null);
+            };
+            case (?canister_id) {
+                let canister = canister_book.get(canister_id);
+                switch (canister) {
+                    case (null) {return (false, null);};
+                    case (?canister) {
+                        let ic : IC.Self = actor("aaaaa-aa");
+                        await ic.delete_canister({ 
+                            canister_id = canister_id;
+                        });
+                        canister_book.put(
+                            canister_id, 
+                            {
+                                flag = true;
+                                status = #deleted;
+                            }
+                        );
+                        return (true, ?canister_id);
+                    }
+                }
+            }
+        };
+    };
+
+    private func canister_uninstall(args: OprArgs) : async (Bool, ?Principal) {
+        let canister_id = args.uninstall;
+        switch (canister_id) {
+            case (null) {
+                return (false, null);
+            };
+            case (?canister_id) {
+                let canister = canister_book.get(canister_id);
+                switch (canister) {
+                    case (null) {return (false, null);};
+                    case (?canister) {
+                        let ic : IC.Self = actor("aaaaa-aa");
+                        await ic.uninstall_code({ 
+                            canister_id = canister_id;
+                        });
+                        canister_book.put(
+                            canister_id, 
+                            {
+                                flag = true;
+                                status = #uninstalled;
+                            }
+                        );
+                        return (true, ?canister_id);
+                    }
+                }
+            }
+        };
+    };
 
     type ReturnProposal = {
         idx: Nat;
@@ -308,6 +499,10 @@ actor class (principals: [Principal], limit: Nat) = self {
 
     public func greet(name : Text) : async Text {
         return "Hello, " # name # "!";
+    };
+
+    public shared (msg) func whoami() : async Principal {
+        msg.caller
     };
 
 }
