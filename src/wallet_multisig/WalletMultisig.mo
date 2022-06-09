@@ -48,16 +48,15 @@ actor class (principals: [Principal], limit: Nat) = self {
         flag: Bool;
     };
 
-    // type CanisterStatus = {#created; #installed; #beforestart; #started; #stopped; #deleted;};
-    // type CanisterInfo = {
-    //     flag: Bool;
-    //     status: CanisterStatus;
-    // };
+    type CanisterStatus = {#created; #installed; #beforestart; #started; #stopped; #deleted;};
+    type CanisterInfo = {
+        flag: Bool;
+        status: CanisterStatus;
+    };
 
     var proposal_idx = 0;
     let proposal_book : Map.HashMap<Nat, Proposal> = Map.HashMap<Nat, Proposal>(0, Nat.equal, Nat32.fromNat);
-    // let canister_book : Map.HashMap<Principal, CanisterStatus> = Map.HashMap<Principal, CanisterStatus>(0, Principal.equal, Principal.hash);
-    let canister_book : Map.HashMap<Principal, Bool> = Map.HashMap<Principal, Bool>(0, Principal.equal, Principal.hash);
+    let canister_book : Map.HashMap<Principal, CanisterInfo> = Map.HashMap<Principal, CanisterInfo>(0, Principal.equal, Principal.hash);
 
     // 检查提案操作的调用者是否是 principals 中的成员
     private func check_sender(sender: Principal) : Bool {
@@ -211,7 +210,13 @@ actor class (principals: [Principal], limit: Nat) = self {
                 let ic : IC.Self = actor("aaaaa-aa");
                 Cycles.add(1_000_000_000_000);
                 let result = await ic.create_canister({ settings = ?settings });
-                canister_book.put(result.canister_id, true);
+                canister_book.put(
+                    result.canister_id, 
+                    {
+                        flag = true;
+                        status = #created;
+                    }
+                );
                 return ?result.canister_id;
             }
         };
@@ -241,6 +246,24 @@ actor class (principals: [Principal], limit: Nat) = self {
                 };
             }
         );
+    };
+    type ReturnCanister = {
+        principal: Principal;
+        info: ?CanisterInfo;
+    };  
+    public func getAllCanisters() : async [?ReturnCanister] {
+        let canisters = Buffer.Buffer<?ReturnCanister>(0);
+        for (key in canister_book.keys()) {
+            canisters.add(?{
+                principal : Principal = key;
+                info : ?CanisterInfo = canister_book.get(key);
+            });
+        };
+        return canisters.toArray();
+    };
+
+    public func getAllMembers() : async [Principal] {
+        return walletms.principals;
     };
 
     public func greet(name : Text) : async Text {
