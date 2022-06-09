@@ -8,6 +8,8 @@ import Text "mo:base/Text";
 import Bool "mo:base/Bool";
 import Buffer "mo:base/Buffer";
 import Principal "mo:base/Principal";
+import Iter "mo:base/Iter";
+import Array "mo:base/Array";
 import Cycles "mo:base/ExperimentalCycles";
 
 // m 就是 principals 的大小，所以不需要把 m 也传进去，只需要传 limit 即可
@@ -46,8 +48,15 @@ actor class (principals: [Principal], limit: Nat) = self {
         flag: Bool;
     };
 
+    // type CanisterStatus = {#created; #installed; #beforestart; #started; #stopped; #deleted;};
+    // type CanisterInfo = {
+    //     flag: Bool;
+    //     status: CanisterStatus;
+    // };
+
     var proposal_idx = 0;
     let proposal_book : Map.HashMap<Nat, Proposal> = Map.HashMap<Nat, Proposal>(0, Nat.equal, Nat32.fromNat);
+    // let canister_book : Map.HashMap<Principal, CanisterStatus> = Map.HashMap<Principal, CanisterStatus>(0, Principal.equal, Principal.hash);
     let canister_book : Map.HashMap<Principal, Bool> = Map.HashMap<Principal, Bool>(0, Principal.equal, Principal.hash);
 
     // 检查提案操作的调用者是否是 principals 中的成员
@@ -108,6 +117,11 @@ actor class (principals: [Principal], limit: Nat) = self {
                 return false;
             };
             case (?vote_proposal) {
+                let voted = vote_proposal.principals.get(msg.caller);
+                switch (voted) {
+                    case (null) {};
+                    case (?voted) {return false};
+                };
                 vote_proposal.principals.put(msg.caller, true);
                 if (should_exec(vote_proposal)) { // 判读是否应该执行提案
                     let result_exec = await proposal_exec(vote_proposal);
@@ -201,6 +215,36 @@ actor class (principals: [Principal], limit: Nat) = self {
                 return ?result.canister_id;
             }
         };
+    };
+
+    type ReturnProposal = {
+        idx: Nat;
+        canister_id: ?Principal;
+        operation: CanisterOprs;
+        args: OprArgs;
+    };
+    public func getAllProposals() : async [?ReturnProposal] {
+        return Array.tabulate<?ReturnProposal>(
+            proposal_idx+1,
+            func (i: Nat) : ?ReturnProposal {
+                let proposal = proposal_book.get(i);
+                switch (proposal) {
+                    case (null) {return null;};
+                    case (?proposal) {
+                        return ?{
+                            idx = proposal.idx;
+                            canister_id: ?Principal = proposal.canister_id;
+                            operation = proposal.operation;
+                            args = proposal.args;
+                        }
+                    };
+                };
+            }
+        );
+    };
+
+    public func greet(name : Text) : async Text {
+        return "Hello, " # name # "!";
     };
 
 }

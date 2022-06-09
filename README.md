@@ -18,12 +18,13 @@
 
 ### 命令
 ```bash
+dfx start --clean
 dfx deploy --argument '( vec { principal "rsqv3-7dkj5-yvrcl-l2bkm-vkvuj-tdync-my6md-ob6uj-ah3bu-dpk3x-gqe"}, 1 )'
-dfx canister call WalletMultisig proposal_issue '( null , variant {create}, record {})'
-dfx canister call WalletMultisig proposal_vote '( 1 )'
-dfx canister call WalletMultisig proposal_view '( 1 )'
-dfx canister call WalletMultisig proposal_issue '( null , variant {create}, record { create_canister = opt record { null; opt vec { principal "rrkah-fqaaa-aaaaa-aaaaq-cai" }; null; null} })'
-dfx canister call WalletMultisig proposal_issue '( null , variant {create}, record { create_canister = opt record {freezing_threshold = null; controllers = opt vec { principal "rrkah-fqaaa-aaaaa-aaaaq-cai" }; memory_allocation = null; compute_allocation = null} })'
+dfx canister call wallet_multisig proposal_issue '( null , variant {create}, record {})'
+dfx canister call wallet_multisig proposal_vote '( 1 )'
+dfx canister call wallet_multisig proposal_view '( 1 )'
+dfx canister call wallet_multisig proposal_issue '( null , variant {create}, record { create_canister = opt record { null; opt vec { principal "rrkah-fqaaa-aaaaa-aaaaq-cai" }; null; null} })'
+dfx canister call wallet_multisig proposal_issue '( null , variant {create}, record { create_canister = opt record {freezing_threshold = null; controllers = opt vec { principal "rrkah-fqaaa-aaaaa-aaaaq-cai" }; memory_allocation = null; compute_allocation = null} })'
 # 主网
 dfx deploy --network=ic --with-cycles=4000000000000 --argument '( vec { principal "rsqv3-7dkj5-yvrcl-l2bkm-vkvuj-tdync-my6md-ob6uj-ah3bu-dpk3x-gqe"}, 1 )'
 ```

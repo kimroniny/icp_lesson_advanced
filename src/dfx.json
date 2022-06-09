@@ -1,8 +1,0 @@
-{
-  "canisters": {
-    "WalletMultisig": {
-      "main": "WalletMultisig.mo",
-      "type": "motoko"
-    }  
-  }
-}

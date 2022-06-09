@@ -1,0 +1,35 @@
+{
+  "canisters": {
+    "wallet_multisig": {
+      "main": "src/wallet_multisig/WalletMultisig.mo",
+      "type": "motoko"
+    },
+    "wallet_multisig_assets": {
+      "dependencies": [
+        "wallet_multisig"
+      ],
+      "frontend": {
+        "entrypoint": "src/wallet_multisig_assets/src/index.html"
+      },
+      "source": [
+        "src/wallet_multisig_assets/assets",
+        "dist/wallet_multisig_assets/"
+      ],
+      "type": "assets"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "dfx": "0.8.4",
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  },
+  "version": 1
+}
