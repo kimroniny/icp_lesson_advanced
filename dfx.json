@@ -1,7 +1,7 @@
 {
   "canisters": {
     "wallet_multisig": {
-      "main": "src/wallet_multisig/WalletMultisig.mo",
+      "main": "src/wallet_multisig/main.mo",
       "type": "motoko"
     },
     "wallet_multisig_assets": {
@@ -21,10 +21,10 @@
   "defaults": {
     "build": {
       "args": "",
-      "packtool": ""
+      "packtool": "vessel sources"
     }
   },
-  "dfx": "0.8.4",
+  "dfx": "0.9.3",
   "networks": {
     "local": {
       "bind": "127.0.0.1:8000",
